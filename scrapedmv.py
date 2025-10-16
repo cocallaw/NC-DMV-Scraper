@@ -18,7 +18,10 @@ import calendar
 
 # --- Configuration ---
 
+# Notification Settings - Choose your notification platform
+NOTIFICATION_TYPE = os.getenv("NOTIFICATION_TYPE", "discord").lower()  # Options: 'discord', 'slack'
 YOUR_DISCORD_WEBHOOK_URL = os.getenv("YOUR_DISCORD_WEBHOOK_URL", "YOUR_WEBHOOK_URL_HERE") # !!! REPLACE WITH YOUR ACTUAL WEBHOOK URL !!!
+YOUR_SLACK_WEBHOOK_URL = os.getenv("YOUR_SLACK_WEBHOOK_URL", "YOUR_SLACK_WEBHOOK_URL_HERE") # !!! REPLACE WITH YOUR ACTUAL SLACK WEBHOOK URL !!!
 GECKODRIVER_PATH = os.getenv('GECKODRIVER_PATH','YOUR_GECKODRIVER_PATH_HERE') # Replace with your geckodriver path
 
 # Can change address via environment values or manually edit this code 
@@ -71,7 +74,13 @@ PROOF_OF_LIFE = False
 if os.getenv("PROOF_OF_LIFE") == "True" or os.getenv("PROOF_OF_LIFE") == True:
     PROOF_OF_LIFE = True
 
-INTRO_MESSAGE = os.getenv("INTRO_MESSAGE", f"@everyone Appointments available at {NCDOT_APPOINTMENT_URL}:\n")
+# Set default intro message based on notification type
+if NOTIFICATION_TYPE == "slack":
+    default_intro = f"<!channel> Appointments available at {NCDOT_APPOINTMENT_URL}:\n"
+else:  # discord or default
+    default_intro = f"@everyone Appointments available at {NCDOT_APPOINTMENT_URL}:\n"
+
+INTRO_MESSAGE = os.getenv("INTRO_MESSAGE", default_intro)
 
 # dont need to set this unless you get error
 FIREFOX_BINARY_PATH = os.getenv("FIREFOX_BINARY_PATH")
@@ -214,18 +223,103 @@ class options_loaded_in_select(object):
         except NoSuchElementException:
             return False
 
+def send_slack_notification(webhook_url, message_content):
+    """Send notification to Slack using incoming webhook."""
+    if not webhook_url or webhook_url == "YOUR_SLACK_WEBHOOK_URL_HERE":
+        print("Slack webhook URL not configured. Skipping notification.")
+        return
+
+    # Handle proof of life messages
+    if message_content is None and PROOF_OF_LIFE:
+        payload = {
+            "text": "No valid appointments found at this time",
+            "username": "NC DMV Bot",
+            "icon_emoji": ":car:"
+        }
+        try:
+            response = requests.post(webhook_url, json=payload, timeout=10)
+            response.raise_for_status()
+            print("Slack proof-of-life notification sent successfully.")
+        except Exception as e:
+            print(f"Error sending Slack proof-of-life notification: {e}")
+        return
+    elif message_content is None:
+        return
+
+    # Prepare full message
+    full_message = INTRO_MESSAGE + message_content
+
+    # Slack has a 4000 character limit per message
+    MAX_SLACK_MESSAGE_LENGTH = 3900  # Leave some buffer
+    
+    message_chunks = []
+    remaining_message = full_message
+
+    while len(remaining_message) > 0:
+        if len(remaining_message) <= MAX_SLACK_MESSAGE_LENGTH:
+            message_chunks.append(remaining_message)
+            remaining_message = ""
+        else:
+            split_index = remaining_message.rfind('\n', 0, MAX_SLACK_MESSAGE_LENGTH)
+            if split_index == -1:
+                split_index = MAX_SLACK_MESSAGE_LENGTH
+
+            message_chunks.append(remaining_message[:split_index])
+            remaining_message = remaining_message[split_index:].lstrip()
+
+            if split_index == MAX_SLACK_MESSAGE_LENGTH and len(remaining_message) > 0:
+                message_chunks[-1] += "\n... (continued in next message)"
+
+    print(f"Sending Slack notification in {len(message_chunks)} chunk(s)...")
+    success = True
+
+    for i, chunk in enumerate(message_chunks):
+        payload = {
+            "text": chunk,
+            "username": "NC DMV Bot",
+            "icon_emoji": ":car:",
+            "unfurl_links": False,
+            "unfurl_media": False
+        }
+        
+        try:
+            response = requests.post(webhook_url, json=payload, timeout=15)
+            response.raise_for_status()
+            print(f"Slack notification chunk {i+1}/{len(message_chunks)} sent successfully.")
+            if i < len(message_chunks) - 1:
+                time.sleep(1)  # Avoid rate limits
+        except requests.exceptions.RequestException as e:
+            print(f"Error sending Slack notification chunk {i+1}: {e}")
+            success = False
+            break
+        except Exception as e:
+            print(f"An unexpected error occurred during Slack notification chunk {i+1}: {e}")
+            success = False
+            break
+
+    if success:
+        print("All Slack notification chunks sent.")
+    else:
+        print("Failed to send all Slack notification chunks.")
+
+
 def send_discord_notification(webhook_url, message_content):
+    """Send notification to Discord using webhook."""
     if not webhook_url or webhook_url == "YOUR_WEBHOOK_URL_HERE":
         print("Discord webhook URL not configured. Skipping notification.")
         return
 
-    if message_content == None and PROOF_OF_LIFE == True:
-        requests.post(webhook_url, json={"content":"No valid appointments found at this time"}, timeout=10)
+    if message_content is None and PROOF_OF_LIFE:
+        try:
+            response = requests.post(webhook_url, json={"content": "No valid appointments found at this time"}, timeout=10)
+            response.raise_for_status()
+            print("Discord proof-of-life notification sent successfully.")
+        except Exception as e:
+            print(f"Error sending Discord proof-of-life notification: {e}")
         return
-    elif message_content == None:
+    elif message_content is None:
         return
 
-    # intro_message = f"@everyone Appointments available at {NCDOT_APPOINTMENT_URL}:\n"
     full_message = INTRO_MESSAGE + message_content
 
     message_chunks = []
@@ -244,14 +338,15 @@ def send_discord_notification(webhook_url, message_content):
             remaining_message = remaining_message[split_index:].lstrip()
 
             if split_index == MAX_DISCORD_MESSAGE_LENGTH and len(remaining_message) > 0:
-                 message_chunks[-1] += "\n... (split)" # forced split in middle of line
+                message_chunks[-1] += "\n... (split)"
 
-
-    print(f"Sending notification in {len(message_chunks)} chunk(s)...")
+    print(f"Sending Discord notification in {len(message_chunks)} chunk(s)...")
     success = True
+    
+    # Handle ntfy.sh special case
     if "https://ntfy.sh/" in webhook_url:
         try:
-            response = requests.post(webhook_url, data=full_message,timeout=10,headers={ "Markdown": "yes" })
+            response = requests.post(webhook_url, data=full_message, timeout=10, headers={"Markdown": "yes"})
             response.raise_for_status()
             print("ntfy notification sent successfully")
         except requests.exceptions.RequestException as e:
@@ -268,7 +363,7 @@ def send_discord_notification(webhook_url, message_content):
                 response.raise_for_status()
                 print(f"Discord notification chunk {i+1}/{len(message_chunks)} sent successfully.")
                 if i < len(message_chunks) - 1:
-                    time.sleep(1) # avoid ratelimit
+                    time.sleep(1)  # Avoid rate limits
             except requests.exceptions.RequestException as e:
                 print(f"Error sending Discord notification chunk {i+1}: {e}")
                 success = False
@@ -284,21 +379,48 @@ def send_discord_notification(webhook_url, message_content):
         print("Failed to send all Discord notification chunks.")
 
 
-def format_results_for_discord(raw_results):
-    """Formats the valid results into a string for Discord."""
+def send_notification(message_content):
+    """Send notification using the configured platform (Discord or Slack)."""
+    if NOTIFICATION_TYPE == "slack":
+        send_slack_notification(YOUR_SLACK_WEBHOOK_URL, message_content)
+    elif NOTIFICATION_TYPE == "discord":
+        send_discord_notification(YOUR_DISCORD_WEBHOOK_URL, message_content)
+    else:
+        print(f"Unknown notification type: {NOTIFICATION_TYPE}. Defaulting to Discord.")
+        send_discord_notification(YOUR_DISCORD_WEBHOOK_URL, message_content)
+
+
+def format_results_for_notification(raw_results):
+    """Formats the valid results into a string for notifications (Discord or Slack)."""
     message_lines = []
     found_valid_times = False
+    
     for location, result in raw_results.items():
         if isinstance(result, list) and result:
-            message_lines.append(f"\n**Location: {location}**")
+            # Format location header based on notification type
+            if NOTIFICATION_TYPE == "slack":
+                message_lines.append(f"\n*Location: {location}*")
+            else:  # Discord or default
+                message_lines.append(f"\n**Location: {location}**")
+            
+            # Add appointment times
             for dt_str in result:
-                message_lines.append(f"- {dt_str}")
+                if NOTIFICATION_TYPE == "slack":
+                    message_lines.append(f"• {dt_str}")
+                else:  # Discord or default
+                    message_lines.append(f"- {dt_str}")
             found_valid_times = True
 
     if not found_valid_times:
         return None
 
     return "\n".join(message_lines)
+
+
+# Keep the old function name for backward compatibility
+def format_results_for_discord(raw_results):
+    """Legacy function name - calls the new format_results_for_notification function."""
+    return format_results_for_notification(raw_results)
 
 def parse_datetime_for_sort(datetime_str):
     try:
@@ -627,9 +749,22 @@ date_filter, dt_start, dt_end, time_filter, tm_start, tm_end = parse_datetime_fi
     TIME_RANGE_START_STR, TIME_RANGE_END_STR
 )
 
-if YOUR_DISCORD_WEBHOOK_URL == "YOUR_WEBHOOK_URL_HERE":
-    print("!!! WARNING: DISCORD WEBHOOK URL IS NOT SET. Notifications will be skipped. !!!")
-    print("!!! Edit the YOUR_DISCORD_WEBHOOK_URL variable in the script. !!!")
+# Check webhook configuration based on notification type
+if NOTIFICATION_TYPE == "slack":
+    if YOUR_SLACK_WEBHOOK_URL == "YOUR_SLACK_WEBHOOK_URL_HERE":
+        print("!!! WARNING: SLACK WEBHOOK URL IS NOT SET. Notifications will be skipped. !!!")
+        print("!!! Set the YOUR_SLACK_WEBHOOK_URL environment variable or edit the script. !!!")
+elif NOTIFICATION_TYPE == "discord":
+    if YOUR_DISCORD_WEBHOOK_URL == "YOUR_WEBHOOK_URL_HERE":
+        print("!!! WARNING: DISCORD WEBHOOK URL IS NOT SET. Notifications will be skipped. !!!")
+        print("!!! Set the YOUR_DISCORD_WEBHOOK_URL environment variable or edit the script. !!!")
+else:
+    print(f"!!! WARNING: UNKNOWN NOTIFICATION TYPE '{NOTIFICATION_TYPE}'. Defaulting to Discord. !!!")
+    if YOUR_DISCORD_WEBHOOK_URL == "YOUR_WEBHOOK_URL_HERE":
+        print("!!! WARNING: DISCORD WEBHOOK URL IS NOT SET. Notifications will be skipped. !!!")
+        print("!!! Set the YOUR_DISCORD_WEBHOOK_URL environment variable or edit the script. !!!")
+
+print(f"Notification platform: {NOTIFICATION_TYPE.upper()}")
 
 while True:
     print(f"\n--- Starting run at {time.strftime('%Y-%m-%d %H:%M:%S')} ---")
@@ -649,12 +784,12 @@ while True:
     )
     print(results)
 
-    discord_message_content = format_results_for_discord(results)
-    if discord_message_content:
+    message_content = format_results_for_notification(results)
+    if message_content:
         print("Valid appointment times found. Sending notification...")
-        send_discord_notification(YOUR_DISCORD_WEBHOOK_URL, discord_message_content)
+        send_notification(message_content)
     else:
-        send_discord_notification(YOUR_DISCORD_WEBHOOK_URL, None)
+        send_notification(None)
         print("No valid appointment times found in this run.")
 
     base_sleep = BASE_INTERVAL_MINUTES * 60

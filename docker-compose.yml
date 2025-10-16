@@ -3,18 +3,32 @@ services:
     image: ghcr.io/tmcelroy2202/nc-dmv-scraper:latest
     container_name: nc-dmv-scraper
     environment:
-      # --- IMPORTANT: Update this ---
+      # --- NOTIFICATION SETTINGS ---
+      # Choose your notification platform: "discord" or "slack"
+      NOTIFICATION_TYPE: "discord"
+      
+      # Discord webhook (required if using Discord notifications)
       YOUR_DISCORD_WEBHOOK_URL: "YOUR_WEBHOOK_URL_HERE"
+      
+      # Slack webhook (required if using Slack notifications)
+      YOUR_SLACK_WEBHOOK_URL: "YOUR_SLACK_WEBHOOK_URL_HERE"
 
-      # --- Extra Configuration ---
-      # remove the # before these lines to make them
-      # have an effect 
+      # --- LOCATION & APPOINTMENT SETTINGS ---
+      # Remove the # before these lines to make them have an effect 
       # YOUR_ADDRESS: "1337 Testing Lane, Charlotte NC"
       # DISTANCE_RANGE: 50
+      # APPOINTMENT_TYPE: "ID Card"
+
+      # --- DATE & TIME FILTERING ---
       # DATE_RANGE_START: "03/23/2025"
       # DATE_RANGE_END: "09/23/2025"
-      # do not use date_range relative ( e.g. 2w ) AND date_range_start / date_range_end at same time. use one or the other.
+      # Do not use date_range relative (e.g. 2w) AND date_range_start/date_range_end at same time. Use one or the other.
       # DATE_RANGE: "2w"
       # TIME_RANGE_START: "8:00"
       # TIME_RANGE_END: "19:00"
+
+      # --- ADVANCED SETTINGS ---
+      # BASE_INTERVAL_MINUTES: 10
+      # PROOF_OF_LIFE: "False"
+      # INTRO_MESSAGE: "Custom intro message here"
     restart: unless-stopped

@@ -53,54 +53,169 @@ GECKODRIVER_PATH = '/home/tommy/.cache/selenium/geckodriver/linux64/0.35.0/gecko
 Your format will depend on your operating system, e.g. on windows it may be like `GECKODRIVER_PATH = 'C:/Users/tommy/Downloads/0.35.0/geckodriver.exe'` or something like that. if you are on Windows, you will likely be default get a format like C:\Users\tommy\Downloads\0.35.0\geckodriver.exe. you need to replace all of those \ with /, so that it looks like the above example. 
 
 
-Then, you need to go to discord, and create a webhook in a server you own ( make a server if you dont have one )
-You can do that by going to the server, right clicking a channel -> edit channel -> integrations -> webhooks -> new webhook -> copy webhook url
+# Notification Setup
 
-Then open up scrapedmv.py in a text editor, and replace the line that says this:
-```python
-YOUR_DISCORD_WEBHOOK_URL = os.getenv("YOUR_DISCORD_WEBHOOK_URL", "YOUR_WEBHOOK_URL_HERE") # !!! REPLACE WITH YOUR ACTUAL WEBHOOK URL !!!
+You can receive notifications via Discord or Slack when appointments become available. **Configure notifications using environment variables - no need to edit the Python script!**
+
+## Quick Configuration (Recommended Method)
+
+Set these environment variables before running the script:
+
+**For Discord notifications:**
+```bash
+export NOTIFICATION_TYPE="discord"
+export YOUR_DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/YOUR_ACTUAL_WEBHOOK_URL_HERE"
 ```
 
-with your webhook url, like this:
-
-```python
-YOUR_DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/10920931091/-JAOIFJWjenirieojOAJOIWjonfrreywoijojwojoOIAJODAab3" # !!! REPLACE WITH YOUR ACTUAL WEBHOOK URL !!!
+**For Slack notifications:**
+```bash
+export NOTIFICATION_TYPE="slack"
+export YOUR_SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
 ```
 
-( that is not a real webhook url to be clear ) ( do notice the quotes around the webhook URL, those are necessary. )
+## Discord Setup
 
-Then, you just run `python3 scrapedmv.py`, and every 10 minutes or so it will start the scraping process. That is all you have to do to get it up and running!
+1. Go to Discord and create a webhook in a server you own (make a server if you don't have one)
+2. Right click a channel → Edit Channel → Integrations → Webhooks → New Webhook → Copy Webhook URL
+3. Set your environment variables (no script editing needed):
 
-# Appointment type
-You can choose the type of appointment by editing scrapedmv.py on the line where it says 
+```bash
+export NOTIFICATION_TYPE="discord"
+export YOUR_DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/YOUR_ACTUAL_WEBHOOK_URL_HERE"
+```
+
+## Slack Setup
+
+1. Go to your Slack workspace and create an Incoming Webhook:
+   - Visit https://api.slack.com/apps
+   - Click "Create New App" → "From scratch"  
+   - Name your app (e.g., "NC DMV Bot") and select your workspace
+   - Go to "Incoming Webhooks" → Toggle "Activate Incoming Webhooks" to On
+   - Click "Add New Webhook to Workspace"
+   - Choose the channel where you want notifications
+   - Copy the webhook URL
+
+2. Set your environment variables (no script editing needed):
+
+```bash
+export NOTIFICATION_TYPE="slack"
+export YOUR_SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+```
+
+## Alternative: Edit Script Directly (Not Recommended)
+
+If you prefer not to use environment variables, you can edit the script directly:
+
+**For Discord:**
+1. Open `scrapedmv.py` and find:
+```python
+NOTIFICATION_TYPE = os.getenv("NOTIFICATION_TYPE", "discord").lower()
+YOUR_DISCORD_WEBHOOK_URL = os.getenv("YOUR_DISCORD_WEBHOOK_URL", "YOUR_WEBHOOK_URL_HERE")
+```
+
+2. Replace with:
+```python
+NOTIFICATION_TYPE = "discord"
+YOUR_DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/YOUR_ACTUAL_WEBHOOK_URL_HERE"
+```
+
+**For Slack:**
+1. Open `scrapedmv.py` and find:
+```python
+NOTIFICATION_TYPE = os.getenv("NOTIFICATION_TYPE", "discord").lower()
+YOUR_SLACK_WEBHOOK_URL = os.getenv("YOUR_SLACK_WEBHOOK_URL", "YOUR_SLACK_WEBHOOK_URL_HERE")
+```
+
+2. Replace with:
+```python
+NOTIFICATION_TYPE = "slack"
+YOUR_SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+```
+
+## Environment Variables for All Configuration
+
+You can configure everything via environment variables without editing any code:
+```bash
+export NOTIFICATION_TYPE="discord"
+export YOUR_DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/YOUR_ACTUAL_WEBHOOK_URL_HERE"
+```
+
+**For Slack:**
+```bash
+export NOTIFICATION_TYPE="slack"
+export YOUR_SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+```
+
+**Additional Configuration:**
+```bash
+# Location filtering
+export YOUR_ADDRESS="123 Main Street, Charlotte, NC"
+export DISTANCE_RANGE="25"
+
+# Appointment type  
+export APPOINTMENT_TYPE="ID Card"
+
+# Date/time filtering
+export DATE_RANGE="4w"  # 4 weeks from today
+export TIME_RANGE_START="08:00"
+export TIME_RANGE_END="17:00"
+
+# Other settings
+export BASE_INTERVAL_MINUTES="10"
+export PROOF_OF_LIFE="False"
+```
+
+Then run the scraper:
+```bash
+python3 scrapedmv.py
+```
+
+The scraper will run every 10 minutes or so and start the scraping process. That is all you have to do to get it up and running!
+
+# Appointment Type Configuration
+
+You can choose the type of appointment using the `APPOINTMENT_TYPE` environment variable (recommended) or by editing the script.
+
+**Using Environment Variable (Recommended):**
+```bash
+export APPOINTMENT_TYPE="ID Card"
+```
+
+**Available appointment types:**
+- `"Driver License - First Time"`
+- `"ID Card"`
+- `"Fees"`
+- `"Non-CDL Road Test"`
+- `"Motorcycle Skills Test"`
+- `"Legal Presence"`
+- `"Permits"`
+- `"Teen Driver Level 1"`
+
+**Alternative: Edit Script Directly**
+
+You can also change the appointment type by editing `scrapedmv.py` on the line where it says:
 
 ```python
 APPOINTMENT_TYPE = os.getenv("APPOINTMENT_TYPE", "Driver License - First Time")
 ```
 
-you can change that to
+Change it to:
 ```python
-APPOINTMENT_TYPE = "Fees"
+APPOINTMENT_TYPE = "ID Card"
 ```
 
-or
+**Important:** Make sure you get the exact name from skiptheline.ncdot.gov. For example, `"Non CDL Road Test"` would fail because it should be `"Non-CDL Road Test"` (with the hyphen).
 
-```python
-APPOINTMENT_TYPE = "Non-CDL Road Test"
-```
+You can also configure this and notifications with Docker using environment variables:
 
-or any of the other button names on the appointment choosing section of the website, just make sure you get the exact name  from skiptheline.ncdot.gov. e.g. if you were to say
-
-```python
-APPOINTMENT_TYPE = "Non CDL Road Test"
-```
-
-That would fail, because it would only find the one with the -, and that would not match.
-
-You can also change this with docker by setting environment variables
-
+**Discord notifications:**
 ```bash
-docker run -e YOUR_DISCORD_WEBHOOK_URL="PUT_YOUR_WEBHOOK_URL_HERE" -e APPOINTMENT_TYPE="Teen Driver Level 1" ghcr.io/tmcelroy2202/nc-dmv-scraper:latest
+docker run -e NOTIFICATION_TYPE="discord" -e YOUR_DISCORD_WEBHOOK_URL="PUT_YOUR_WEBHOOK_URL_HERE" -e APPOINTMENT_TYPE="Teen Driver Level 1" ghcr.io/tmcelroy2202/nc-dmv-scraper:latest
+```
+
+**Slack notifications:**
+```bash
+docker run -e NOTIFICATION_TYPE="slack" -e YOUR_SLACK_WEBHOOK_URL="PUT_YOUR_SLACK_WEBHOOK_HERE" -e APPOINTMENT_TYPE="ID Card" ghcr.io/tmcelroy2202/nc-dmv-scraper:latest
 ```
 
 
@@ -188,61 +303,91 @@ PROOF_OF_LIFE = True
 
 # Docker
 
-In order to run a pre-built image
+## Pre-built Image
+
+**For Discord notifications:**
 ```bash
-docker run -e YOUR_DISCORD_WEBHOOK_URL="PUT_YOUR_WEBHOOK_URL_HERE" ghcr.io/tmcelroy2202/nc-dmv-scraper:latest
+docker run -e NOTIFICATION_TYPE="discord" -e YOUR_DISCORD_WEBHOOK_URL="PUT_YOUR_WEBHOOK_URL_HERE" ghcr.io/tmcelroy2202/nc-dmv-scraper:latest
 ```
 
-To run via docker with custom filtering arguments, you would do, for example:
-
+**For Slack notifications:**
 ```bash
-docker run -e YOUR_DISCORD_WEBHOOK_URL="PUT_YOUR_WEBHOOK_URL_HERE" -e YOUR_ADDRESS="1337 Testing Lane, Charlotte NC" -e DISTANCE_RANGE=50 -e DATE_RANGE_START="03/23/2025" -e DATE_RANGE_END="09/23/2025" -e TIME_RANGE_START="8:00" -e TIME_RANGE_END="9:00" ghcr.io/tmcelroy2202/nc-dmv-scraper:latest
+docker run -e NOTIFICATION_TYPE="slack" -e YOUR_SLACK_WEBHOOK_URL="PUT_YOUR_SLACK_WEBHOOK_HERE" ghcr.io/tmcelroy2202/nc-dmv-scraper:latest
 ```
 
-or, if you wish to build the docker container locally, clone the repo, cd into it, and:
+**With custom filtering:**
+```bash
+docker run \
+  -e NOTIFICATION_TYPE="discord" \
+  -e YOUR_DISCORD_WEBHOOK_URL="PUT_YOUR_WEBHOOK_URL_HERE" \
+  -e YOUR_ADDRESS="1337 Testing Lane, Charlotte NC" \
+  -e DISTANCE_RANGE=50 \
+  -e APPOINTMENT_TYPE="ID Card" \
+  -e DATE_RANGE="4w" \
+  -e TIME_RANGE_START="8:00" \
+  -e TIME_RANGE_END="17:00" \
+  ghcr.io/tmcelroy2202/nc-dmv-scraper:latest
+```
 
-Docker build
+## Build Locally
 
+If you wish to build the docker container locally, clone the repo, cd into it, and:
+
+**Docker build:**
 ```bash
 docker build -t nc-dmv-scraper .
 ```
 
-then
-
-Run Container
+**Run container:**
 ```bash
-docker run -e YOUR_DISCORD_WEBHOOK_URL="PUT_YOUR_WEBHOOK_URL_HERE" nc-dmv-scraper
+docker run -e NOTIFICATION_TYPE="discord" -e YOUR_DISCORD_WEBHOOK_URL="PUT_YOUR_WEBHOOK_URL_HERE" nc-dmv-scraper
 ```
 
 # Docker Compose
-If you wish to run via docker compose, you can just git clone this repository, set your webhook URL in docker-compose.yml, then run
+
+If you wish to run via docker compose, you can just git clone this repository, configure your notification settings in docker-compose.yml, then run:
+
 ```bash
 docker compose up -d
 ```
 
-If you wish to customize the environment variables, they can be edited in docker-compose.yml like this:
+The docker-compose.yml file includes configuration for both Discord and Slack notifications. Simply update the appropriate webhook URL and set the notification type:
 
 ```yaml
 services:
   dmv-scraper:
-    image: ghcr.io/tmcelroy2202/nc-dmv-scraper:latest
+    build: .  # Use local Dockerfile
     container_name: nc-dmv-scraper
     environment:
-      # --- IMPORTANT: Update this ---
+      # --- NOTIFICATION SETTINGS ---
+      # Choose your notification platform: "discord" or "slack"
+      NOTIFICATION_TYPE: "discord"
+      
+      # Discord webhook (required if using Discord notifications)
       YOUR_DISCORD_WEBHOOK_URL: "YOUR_WEBHOOK_URL_HERE"
+      
+      # Slack webhook (required if using Slack notifications)  
+      YOUR_SLACK_WEBHOOK_URL: "YOUR_SLACK_WEBHOOK_URL_HERE"
 
-      # --- Extra Configuration ---
-      APPOINTMENT_TYPE: "Driver License - First Time"
+      # --- LOCATION & APPOINTMENT SETTINGS ---
       YOUR_ADDRESS: "1337 Testing Lane, Charlotte NC"
       DISTANCE_RANGE: 50
-      DATE_RANGE_START: "03/23/2025"
-      DATE_RANGE_END: "09/23/2025"
-      # do not use date_range relative ( e.g. 2w ) AND date_range_start / date_range_end at same time. use one or the other.
-      DATE_RANGE: "2w"
+      APPOINTMENT_TYPE: "ID Card"
+
+      # --- DATE & TIME FILTERING ---
+      DATE_RANGE: "4w"  # 4 weeks from today
+      # DATE_RANGE_START: "03/23/2025"
+      # DATE_RANGE_END: "09/23/2025"
       # TIME_RANGE_START: "8:00"
       # TIME_RANGE_END: "19:00"
+      
+      # --- ADVANCED SETTINGS ---
+      BASE_INTERVAL_MINUTES: 10
+      PROOF_OF_LIFE: "False"
     restart: unless-stopped
 ```
+
+**For Slack notifications:** Change `NOTIFICATION_TYPE` to `"slack"` and set your `YOUR_SLACK_WEBHOOK_URL`.
 
 # Beta
 
