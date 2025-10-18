@@ -1,34 +1,147 @@
+version: '3.8'
+
 services:
-  dmv-scraper:
-    image: ghcr.io/tmcelroy2202/nc-dmv-scraper:latest
-    container_name: nc-dmv-scraper
+  # New .NET Core version
+  ncdmv-scraper-dotnet:
+    build:
+      context: .
+      dockerfile: Dockerfile.dotnet
     environment:
-      # --- NOTIFICATION SETTINGS ---
-      # Choose your notification platform: "discord" or "slack"
-      NOTIFICATION_TYPE: "discord"
+      # ======================
+      # SCRAPER CONFIGURATION
+      # ======================
+      - ScraperSettings__BaseUrl=https://skiptheline.ncdot.gov
       
-      # Discord webhook (required if using Discord notifications)
-      YOUR_DISCORD_WEBHOOK_URL: "YOUR_WEBHOOK_URL_HERE"
+      # Appointment type to search for - CUSTOMIZE THIS!
+      # Common options: "Driver License - First Time", "Motorcycle Skills Test", 
+      # "Legal Presence", "Permits", "Teen Driver Level 1", "ID Card"
+      - ScraperSettings__AppointmentType=${APPOINTMENT_TYPE:-Driver License - First Time}
+      # Example of direct configuration (uncomment and edit):
+      # - ScraperSettings__AppointmentType=Motorcycle Skills Test
       
-      # Slack webhook (required if using Slack notifications)
-      YOUR_SLACK_WEBHOOK_URL: "YOUR_SLACK_WEBHOOK_URL_HERE"
-
-      # --- LOCATION & APPOINTMENT SETTINGS ---
-      # Remove the # before these lines to make them have an effect 
-      # YOUR_ADDRESS: "1337 Testing Lane, Charlotte NC"
-      # DISTANCE_RANGE: 50
-      # APPOINTMENT_TYPE: "ID Card"
-
-      # --- DATE & TIME FILTERING ---
-      # DATE_RANGE_START: "03/23/2025"
-      # DATE_RANGE_END: "09/23/2025"
-      # Do not use date_range relative (e.g. 2w) AND date_range_start/date_range_end at same time. Use one or the other.
-      # DATE_RANGE: "2w"
-      # TIME_RANGE_START: "8:00"
-      # TIME_RANGE_END: "19:00"
-
-      # --- ADVANCED SETTINGS ---
-      # BASE_INTERVAL_MINUTES: 10
-      # PROOF_OF_LIFE: "False"
-      # INTRO_MESSAGE: "Custom intro message here"
+      # How often to check for appointments (in minutes)
+      - ScraperSettings__BaseIntervalMinutes=${BASE_INTERVAL_MINUTES:-10}
+      # Example: Check every 15 minutes
+      # - ScraperSettings__BaseIntervalMinutes=15
+      
+      # Random delay between checks (helps avoid rate limiting)
+      - ScraperSettings__MinRandomDelaySeconds=${MIN_RANDOM_DELAY_SECONDS:-10}
+      - ScraperSettings__MaxRandomDelaySeconds=${MAX_RANDOM_DELAY_SECONDS:-30}
+      
+      # Send "proof of life" notifications even when no appointments found
+      - ScraperSettings__ProofOfLife=${PROOF_OF_LIFE:-false}
+      
+      # =========================
+      # NOTIFICATION CONFIGURATION - REQUIRED!
+      # =========================
+      
+      # Choose notification platform: "discord" or "slack"
+      - NotificationSettings__Type=${NOTIFICATION_TYPE:-discord}
+      
+      # DISCORD: Get webhook URL from Discord Server Settings > Integrations > Webhooks
+      - NotificationSettings__DiscordWebhookUrl=${YOUR_DISCORD_WEBHOOK_URL}
+      # Example of direct configuration (uncomment and add your URL):
+      # - NotificationSettings__DiscordWebhookUrl=https://discord.com/api/webhooks/1234567890/abcdef123456
+      
+      # SLACK: Get webhook URL from Slack App settings
+      - NotificationSettings__SlackWebhookUrl=${YOUR_SLACK_WEBHOOK_URL}
+      # Example of direct configuration (uncomment and add your URL):
+      # - NotificationSettings__SlackWebhookUrl=https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+      
+      # Custom intro message (optional)
+      - NotificationSettings__IntroMessage=${INTRO_MESSAGE}
+      # Example: Custom notification message
+      # - NotificationSettings__IntroMessage=🚗 DMV Appointments Available! Check them out:
+      
+      # ========================
+      # LOCATION FILTERING - CUSTOMIZE YOUR ADDRESS!
+      # ========================
+      
+      # Your address for distance-based filtering - REQUIRED for location filtering
+      - FilterSettings__UserAddress=${YOUR_ADDRESS}
+      # Examples of direct configuration (uncomment and edit one):
+      # - FilterSettings__UserAddress=1226 Testing Avenue, Charlotte, NC 28202
+      # - FilterSettings__UserAddress=123 Main Street, Raleigh, NC 27601
+      # - FilterSettings__UserAddress=456 Oak Drive, Durham, NC 27705
+      
+      # Maximum distance in miles from your address
+      - FilterSettings__DistanceRangeMiles=${DISTANCE_RANGE}
+      # Examples:
+      # - FilterSettings__DistanceRangeMiles=25    # 25 mile radius
+      # - FilterSettings__DistanceRangeMiles=50    # 50 mile radius
+      
+      # =======================
+      # DATE/TIME FILTERING (Optional)
+      # =======================
+      
+      # Option 1: Absolute date range (MM/DD/YYYY format)
+      - FilterSettings__DateRangeStart=${DATE_RANGE_START}
+      - FilterSettings__DateRangeEnd=${DATE_RANGE_END}
+      # Examples:
+      # - FilterSettings__DateRangeStart=12/01/2024
+      # - FilterSettings__DateRangeEnd=03/31/2025
+      
+      # Option 2: Relative date range (easier - use this OR absolute dates above)
+      - FilterSettings__DateRangeRelative=${DATE_RANGE}
+      # Examples:
+      # - FilterSettings__DateRangeRelative=2w    # Next 2 weeks
+      # - FilterSettings__DateRangeRelative=1m    # Next 1 month
+      # - FilterSettings__DateRangeRelative=30d   # Next 30 days
+      
+      # Time range filtering (24-hour format HH:MM)
+      - FilterSettings__TimeRangeStart=${TIME_RANGE_START}
+      - FilterSettings__TimeRangeEnd=${TIME_RANGE_END}
+      # Examples:
+      # - FilterSettings__TimeRangeStart=09:00    # 9:00 AM
+      # - FilterSettings__TimeRangeEnd=17:00      # 5:00 PM
+      # - FilterSettings__TimeRangeStart=08:30    # 8:30 AM  
+      # - FilterSettings__TimeRangeEnd=18:30      # 6:30 PM
+      
+      # ======================
+      # LOGGING CONFIGURATION
+      # ======================
+      - Logging__LogLevel__Default=${LOG_LEVEL:-Information}
+      # Options: Trace, Debug, Information, Warning, Error, Critical
+      # - Logging__LogLevel__Default=Debug    # For troubleshooting
     restart: unless-stopped
+    profiles:
+      - dotnet
+    
+    # =======================
+    # COMPLETE EXAMPLE CONFIGURATION
+    # =======================
+    # Uncomment the section below and customize for a quick start:
+    #
+    # ncdmv-scraper-example:
+    #   build:
+    #     context: .
+    #     dockerfile: Dockerfile.dotnet
+    #   environment:
+    #     # Basic settings
+    #     - ScraperSettings__AppointmentType=Driver License - First Time
+    #     - ScraperSettings__BaseIntervalMinutes=15
+    #     - ScraperSettings__ProofOfLife=false
+    #     
+    #     # Discord notification (replace with your webhook)
+    #     - NotificationSettings__Type=discord
+    #     - NotificationSettings__DiscordWebhookUrl=https://discord.com/api/webhooks/YOUR_WEBHOOK_HERE
+    #     - NotificationSettings__IntroMessage=🚗 NC DMV Appointments Found!
+    #     
+    #     # Your location (replace with your actual address)
+    #     - FilterSettings__UserAddress=123 Your Street, Your City, NC 12345
+    #     - FilterSettings__DistanceRangeMiles=30
+    #     
+    #     # Look for appointments in the next 3 weeks, 9 AM to 6 PM
+    #     - FilterSettings__DateRangeRelative=3w
+    #     - FilterSettings__TimeRangeStart=09:00
+    #     - FilterSettings__TimeRangeEnd=18:00
+    #     
+    #     # Debug logging
+    #     - Logging__LogLevel__Default=Information
+    #   restart: unless-stopped
+    #   profiles:
+    #     - example
+
+networks:
+  default:
+    name: ncdmv-scraper-network

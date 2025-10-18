@@ -1,0 +1,55 @@
+# Multi-stage build for optimized container size
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+
+WORKDIR /src
+
+# Copy project file and restore dependencies
+COPY NCDmvScraper.csproj .
+RUN dotnet restore NCDmvScraper.csproj
+
+# Copy source code and build
+COPY . .
+RUN dotnet build NCDmvScraper.csproj -c Release -o /app/build
+
+# Publish the application
+RUN dotnet publish NCDmvScraper.csproj -c Release -o /app/publish \
+    --self-contained true \
+    --runtime linux-musl-x64 \
+    /p:PublishTrimmed=true \
+    /p:PublishSingleFile=true
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/runtime-deps:8.0-alpine
+
+# Install ca-certificates for HTTPS calls
+RUN apk add --no-cache ca-certificates
+
+# Create non-root user
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+WORKDIR /app
+
+# Copy the published application
+COPY --from=build /app/publish .
+
+# Copy configuration and data files
+COPY appsettings.json .
+COPY ncdot_locations_coordinates_only.json .
+
+# Set ownership
+RUN chown -R appuser:appgroup /app
+
+# Switch to non-root user
+USER appuser
+
+# Environment variables with defaults
+ENV DOTNET_ENVIRONMENT=Production
+ENV DOTNET_EnableDiagnostics=0
+ENV DOTNET_USE_POLLING_FILE_WATCHER=true
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD pgrep -x NCDmvScraper > /dev/null || exit 1
+
+ENTRYPOINT ["./NCDmvScraper"]
