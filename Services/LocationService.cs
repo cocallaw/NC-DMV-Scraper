@@ -65,7 +65,7 @@ public class LocationService : ILocationService
                 return true;
             }
 
-            _allowedLocations = CalculateAllowedLocations(locationData, userCoordinates, _filterSettings.DistanceRangeMiles.Value);
+            _allowedLocations = CalculateAllowedLocations(locationData, userCoordinates.Value, _filterSettings.DistanceRangeMiles.Value);
             _filteringEnabled = true;
 
             _logger.LogInformation("Location filtering enabled. Found {Count} locations within {Distance} miles of {Address}",
@@ -130,13 +130,13 @@ public class LocationService : ILocationService
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("NCDmvScraper/1.0");
 
             var response = await _httpClient.GetStringAsync(url);
-            var results = JsonConvert.DeserializeObject<dynamic[]>(response);
+            var results = JsonConvert.DeserializeObject<GeocodingResult[]>(response);
 
             if (results?.Length > 0)
             {
                 var result = results[0];
-                var lat = Convert.ToDouble(result.lat.ToString());
-                var lon = Convert.ToDouble(result.lon.ToString());
+                var lat = Convert.ToDouble(result.Lat);
+                var lon = Convert.ToDouble(result.Lon);
                 
                 _logger.LogInformation("Geocoded address '{Address}' to coordinates ({Lat}, {Lon})", address, lat, lon);
                 return (lat, lon);
@@ -205,4 +205,13 @@ public class LocationService : ILocationService
     }
 
     private static double ToRadians(double degrees) => degrees * Math.PI / 180;
+}
+
+public class GeocodingResult
+{
+    [JsonProperty("lat")]
+    public string Lat { get; set; } = string.Empty;
+    
+    [JsonProperty("lon")]
+    public string Lon { get; set; } = string.Empty;
 }
