@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # New .NET Core version
   ncdmv-scraper-dotnet:
@@ -39,17 +37,17 @@ services:
       - NotificationSettings__Type=${NOTIFICATION_TYPE:-discord}
       
       # DISCORD: Get webhook URL from Discord Server Settings > Integrations > Webhooks
-      - NotificationSettings__DiscordWebhookUrl=${YOUR_DISCORD_WEBHOOK_URL}
+      - NotificationSettings__DiscordWebhookUrl=${YOUR_DISCORD_WEBHOOK_URL:-}
       # Example of direct configuration (uncomment and add your URL):
       # - NotificationSettings__DiscordWebhookUrl=https://discord.com/api/webhooks/1234567890/abcdef123456
       
       # SLACK: Get webhook URL from Slack App settings
-      - NotificationSettings__SlackWebhookUrl=${YOUR_SLACK_WEBHOOK_URL}
+      - NotificationSettings__SlackWebhookUrl=${YOUR_SLACK_WEBHOOK_URL:-}
       # Example of direct configuration (uncomment and add your URL):
       # - NotificationSettings__SlackWebhookUrl=https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
       
       # Custom intro message (optional)
-      - NotificationSettings__IntroMessage=${INTRO_MESSAGE}
+      - NotificationSettings__IntroMessage=${INTRO_MESSAGE:-}
       # Example: Custom notification message
       # - NotificationSettings__IntroMessage=🚗 DMV Appointments Available! Check them out:
       
@@ -58,14 +56,14 @@ services:
       # ========================
       
       # Your address for distance-based filtering - REQUIRED for location filtering
-      - FilterSettings__UserAddress=${YOUR_ADDRESS}
+      - FilterSettings__UserAddress=${YOUR_ADDRESS:-}
       # Examples of direct configuration (uncomment and edit one):
       # - FilterSettings__UserAddress=1226 Testing Avenue, Charlotte, NC 28202
       # - FilterSettings__UserAddress=123 Main Street, Raleigh, NC 27601
       # - FilterSettings__UserAddress=456 Oak Drive, Durham, NC 27705
       
       # Maximum distance in miles from your address
-      - FilterSettings__DistanceRangeMiles=${DISTANCE_RANGE}
+      - FilterSettings__DistanceRangeMiles=${DISTANCE_RANGE:-}
       # Examples:
       # - FilterSettings__DistanceRangeMiles=25    # 25 mile radius
       # - FilterSettings__DistanceRangeMiles=50    # 50 mile radius
@@ -75,22 +73,22 @@ services:
       # =======================
       
       # Option 1: Absolute date range (MM/DD/YYYY format)
-      - FilterSettings__DateRangeStart=${DATE_RANGE_START}
-      - FilterSettings__DateRangeEnd=${DATE_RANGE_END}
+      - FilterSettings__DateRangeStart=${DATE_RANGE_START:-}
+      - FilterSettings__DateRangeEnd=${DATE_RANGE_END:-}
       # Examples:
       # - FilterSettings__DateRangeStart=12/01/2024
       # - FilterSettings__DateRangeEnd=03/31/2025
       
       # Option 2: Relative date range (easier - use this OR absolute dates above)
-      - FilterSettings__DateRangeRelative=${DATE_RANGE}
+      - FilterSettings__DateRangeRelative=${DATE_RANGE:-}
       # Examples:
       # - FilterSettings__DateRangeRelative=2w    # Next 2 weeks
       # - FilterSettings__DateRangeRelative=1m    # Next 1 month
       # - FilterSettings__DateRangeRelative=30d   # Next 30 days
       
       # Time range filtering (24-hour format HH:MM)
-      - FilterSettings__TimeRangeStart=${TIME_RANGE_START}
-      - FilterSettings__TimeRangeEnd=${TIME_RANGE_END}
+      - FilterSettings__TimeRangeStart=${TIME_RANGE_START:-}
+      - FilterSettings__TimeRangeEnd=${TIME_RANGE_END:-}
       # Examples:
       # - FilterSettings__TimeRangeStart=09:00    # 9:00 AM
       # - FilterSettings__TimeRangeEnd=17:00      # 5:00 PM
@@ -104,8 +102,6 @@ services:
       # Options: Trace, Debug, Information, Warning, Error, Critical
       # - Logging__LogLevel__Default=Debug    # For troubleshooting
     restart: unless-stopped
-    profiles:
-      - dotnet
     
     # =======================
     # COMPLETE EXAMPLE CONFIGURATION

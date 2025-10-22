@@ -15,7 +15,7 @@ RUN dotnet build NCDmvScraper.csproj -c Release -o /app/build
 RUN dotnet publish NCDmvScraper.csproj -c Release -o /app/publish \
     --self-contained true \
     --runtime linux-musl-x64 \
-    /p:PublishTrimmed=true \
+    /p:PublishTrimmed=false \
     /p:PublishSingleFile=true
 
 # Runtime stage
