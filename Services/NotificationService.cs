@@ -192,22 +192,32 @@ public class NotificationService : INotificationService
             var chunks = ChunkMessage(fullMessage, _notificationSettings.MaxSlackMessageLength);
             
             _logger.LogInformation("Sending Slack notification in {ChunkCount} chunk(s)", chunks.Count);
+            _logger.LogDebug("Full message content: {Message}", fullMessage);
 
             for (int i = 0; i < chunks.Count; i++)
             {
-                var payload = new
+                var payload = new SlackPayload
                 {
-                    text = chunks[i],
-                    username = "NC DMV Bot",
-                    icon_emoji = ":car:",
-                    unfurl_links = false,
-                    unfurl_media = false
+                    Text = chunks[i],
+                    Username = "NC DMV Bot",
+                    IconEmoji = ":car:",
+                    UnfurlLinks = false,
+                    UnfurlMedia = false
                 };
 
                 var json = JsonConvert.SerializeObject(payload);
+                _logger.LogDebug("Sending Slack payload: {Payload}", json);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.PostAsync(_notificationSettings.SlackWebhookUrl, content);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Slack API returned {StatusCode}: {ErrorContent}. Payload was: {Payload}", 
+                        response.StatusCode, errorContent, json);
+                }
+                
                 response.EnsureSuccessStatusCode();
                 
                 _logger.LogInformation("Slack notification chunk {ChunkNumber}/{Total} sent successfully", i + 1, chunks.Count);
@@ -272,4 +282,22 @@ public class NotificationService : INotificationService
 
         return chunks;
     }
+}
+
+public class SlackPayload
+{
+    [JsonProperty("text")]
+    public string Text { get; set; } = string.Empty;
+    
+    [JsonProperty("username")]
+    public string Username { get; set; } = string.Empty;
+    
+    [JsonProperty("icon_emoji")]
+    public string IconEmoji { get; set; } = string.Empty;
+    
+    [JsonProperty("unfurl_links")]
+    public bool UnfurlLinks { get; set; }
+    
+    [JsonProperty("unfurl_media")]
+    public bool UnfurlMedia { get; set; }
 }
